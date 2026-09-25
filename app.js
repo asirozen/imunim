@@ -18,7 +18,7 @@ document.body.insertAdjacentHTML('afterbegin',`
 <section id="tab-next">
   <div id="hero" class="hero"></div>
   <div class="late">לא לאחר!!!</div>
-  <h2>לארוז לפני האימון</h2>
+  <div class="packhead"><h2>לארוז לפני האימון</h2><button class="editbtn" id="packEdit">עריכה</button></div>
   <div class="card pack" id="pack"></div>
 </section>
 
@@ -86,7 +86,8 @@ const DAYS=["ראשון","שני","שלישי","רביעי","חמישי","שיש
 const DAYS_SHORT=["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
 const DAY_CODE={SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6};
 const MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-const ITEMS=["נעלי כדורסל","בקבוק מים מלא","חולצה להחלפה","מגבת","כדור טניס","דלגית"];
+const DEFAULT_ITEMS=["נעלי כדורסל","בקבוק מים מלא","חולצה להחלפה","מגבת","כדור טניס","דלגית"];
+const items=()=>(Array.isArray(L.pack)&&L.pack.length)?L.pack:DEFAULT_ITEMS;
 
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,"0");
@@ -139,7 +140,7 @@ async function load(from,to){
   const f=dkey(from), t=dkey(to);
   Object.keys(L.events).forEach(id=>{ const e=L.events[id]; if(e.date>=f && e.date<=t) delete L.events[id]; });
   data.events.forEach(e=>L.events[e.id]=e);
-  L.series=data.series; L.syncedAt=Date.now();
+  L.series=data.series; if(Array.isArray(data.pack)) L.pack=data.pack; L.syncedAt=Date.now();
   // forget old data
   const old=dkey(addDays(new Date(),-70));
   Object.keys(L.events).forEach(id=>{ if(L.events[id].date<old) delete L.events[id]; });
@@ -219,20 +220,49 @@ function renderNext(){
     <span class="left">${esc(timeLeft(first))}</span>${same.some(x=>x.changed||x.extra)?'<span class="changed">שינוי השבוע</span>':""}`;
   renderPack(s.date);
 }
+let packEditing=false, packDraft=null, packTarget=null;
 function renderPack(k){
-  const box=$("pack"); const got=(k&&L.packed[k])||[];
-  box.innerHTML=ITEMS.map((it,i)=>`<button class="item" data-i="${i}" aria-pressed="${got.includes(i)}">
+  packTarget=k;
+  const box=$("pack");
+  if(packEditing){
+    box.innerHTML=packDraft.map((it,i)=>`<div class="item editing"><span class="label">${esc(it)}</span>
+      <button class="rm" data-rm="${i}" aria-label="להסיר ${esc(it)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join("")+
+      `<div class="addrow"><input id="packNew" type="text" maxlength="40" placeholder="פריט חדש, למשל: כדור"><button class="btn primary" id="packAdd">הוספה</button></div>
+       <div class="packactions"><button class="btn primary" id="packSave">לשמור</button><button class="btn ghost" id="packCancel">ביטול</button></div>`;
+    box.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ packDraft.splice(+b.dataset.rm,1); renderPack(k); });
+    const add=()=>{ const v=$("packNew").value.trim(); if(!v) return; if(packDraft.includes(v)){toast("כבר ברשימה");return;} if(packDraft.length>=20){toast("עד 20 פריטים");return;} packDraft.push(v); renderPack(k); setTimeout(()=>{const n=$("packNew"); if(n) n.focus();},0); };
+    $("packAdd").onclick=add;
+    $("packNew").onkeydown=e=>{ if(e.key==="Enter") add(); };
+    $("packCancel").onclick=()=>{ packEditing=false; renderPack(k); };
+    $("packSave").onclick=savePack;
+    $("packEdit").style.display="none";
+    return;
+  }
+  $("packEdit").style.display="";
+  const list=items(), got=((k&&L.packed[k])||[]).filter(x=>typeof x==="string"&&list.includes(x));
+  box.innerHTML=list.map(it=>`<button class="item" data-it="${esc(it)}" aria-pressed="${got.includes(it)}">
     <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
-    <span class="label">${esc(it)}</span></button>`).join("")+`<div class="packed-all ${got.length===ITEMS.length?"show":""}">הכול בתיק. עכשיו רק לצאת בזמן.</div>`;
+    <span class="label">${esc(it)}</span></button>`).join("")+`<div class="packed-all ${list.length&&got.length===list.length?"show":""}">הכול בתיק. עכשיו רק לצאת בזמן.</div>`;
   box.querySelectorAll(".item").forEach(b=>b.onclick=()=>{
     if(!k) return;
-    const i=+b.dataset.i, arr=L.packed[k]||(L.packed[k]=[]);
-    const p=arr.indexOf(i); p>=0?arr.splice(p,1):arr.push(i);
+    const it=b.dataset.it; let arr=(L.packed[k]||[]).filter(x=>typeof x==="string");
+    arr=arr.includes(it)?arr.filter(x=>x!==it):arr.concat(it);
+    L.packed[k]=arr;
     const old=dkey(addDays(new Date(),-7));
     Object.keys(L.packed).forEach(x=>{ if(x<old) delete L.packed[x]; });
     saveL(); renderPack(k);
   });
 }
+async function savePack(){
+  if(writing) return;
+  const list=packDraft.slice();
+  if(!list.length){ toast("צריך לפחות פריט אחד"); return; }
+  writing=true; $("busy").classList.add("on");
+  try{ await api("pack",{items:JSON.stringify(list)},true); L.pack=list; saveL(); packEditing=false; toast("הרשימה נשמרה"); }
+  catch(e){ toast("הרשימה לא נשמרה ("+e.message+")"); }
+  finally{ writing=false; $("busy").classList.remove("on"); renderPack(packTarget); }
+}
+$("packEdit").onclick=()=>{ packEditing=true; packDraft=items().slice(); renderPack(packTarget); };
 
 // ---------- render: month ----------
 function renderMonth(){

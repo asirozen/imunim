@@ -146,3 +146,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ball);outline-o
 .busy-scrim div{background:var(--card);border-radius:16px;padding:14px 20px;font-weight:700}
 .gate{padding:28px 20px;text-align:center}
 .gate h2{margin:0 0 8px}
+.packhead{display:flex;align-items:center;justify-content:space-between;margin:26px 0 10px}
+.packhead h2{margin:0}
+.editbtn{border:1px solid var(--line);background:var(--card);color:var(--ball);font-weight:700;border-radius:12px;padding:8px 14px;cursor:pointer}
+.item.editing{cursor:default;justify-content:space-between}
+.rm{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--ball-soft);color:var(--late);display:grid;place-items:center;cursor:pointer}
+.rm svg{width:16px;height:16px}
+.addrow{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+.addrow input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:17px}
+.addrow .btn{flex:none;padding:12px 16px}
+.packactions{display:flex;gap:10px;padding:0 12px 12px}

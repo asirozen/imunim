@@ -141,6 +141,7 @@ section[hidden]{display:none}
 .switch input{width:22px;height:22px;accent-color:var(--late)}
 .actions{display:flex;gap:10px}
 .btn{flex:1;border:0;border-radius:14px;padding:14px;font-weight:800;font-size:17px;cursor:pointer}
+.btn:disabled{opacity:.5}
 .btn.primary{background:var(--ball);color:#fff}
 .btn.ghost{background:var(--bg);border:1px solid var(--line)}
 .btn.danger{background:none;color:var(--late);border:1px solid var(--line);margin-top:10px;width:100%}
@@ -319,12 +320,19 @@ async function refresh(){
   }
   renderAll();
 }
+let writing=false;
 async function write(action,data){
+  if(writing) return;                       // לא לשלוח פעמיים
+  writing=true; $("shSave").disabled=true; $("shReset").disabled=true;
   $("busy").classList.add("on");
   try{ await api(action,data,true); closeSheet(); toast("נשמר ביומן"); await refresh(); }
-  catch(e){ toast("לא נשמר: "+(e.message||"בעיית חיבור")); }
-  finally{ $("busy").classList.remove("on"); }
+  catch(e){
+    await refresh();                        // להציג מה באמת יש ביומן
+    toast("ייתכן שלא נשמר – בדוק ברשימה לפני שמנסים שוב");
+  }
+  finally{ writing=false; $("shSave").disabled=false; $("shReset").disabled=false; $("busy").classList.remove("on"); }
 }
+function newOpId(){ const c="0123456789abcdefghijklmnopqrstuv"; let s="x"; for(let i=0;i<20;i++) s+=c[Math.floor(Math.random()*32)]; return s; }
 
 // ---------- data helpers ----------
 function sessionsOn(k){ return Object.values(L.events).filter(e=>e.date===k).sort((a,b)=>a.start.localeCompare(b.start)); }
@@ -467,9 +475,10 @@ function editSession(id){
 }
 $("addExtra").onclick=()=>{
   const t=new Date(); const inView=t.getMonth()===view.getMonth()&&t.getFullYear()===view.getFullYear();
+  const opId=newOpId();
   openSheet({title:"אימון נוסף",sub:"לאימון חד־פעמי, למשל משחק או אימון השלמה",showDate:true,
     date:dkey(inView?t:view),name:"כדורסל",start:"17:00",end:"18:30",place:"",
-    save:v=>{ if(!v.date){toast("צריך לבחור תאריך");return;} write("add",{date:v.date,name:v.name||"אימון",start:v.start,end:v.end,place:v.place}); }});
+    save:v=>{ if(!v.date){toast("צריך לבחור תאריך");return;} write("add",{opId,date:v.date,name:v.name||"אימון",start:v.start,end:v.end,place:v.place}); }});
 };
 function editReg(sid){
   const r=L.series.find(x=>x.id===sid); if(!r) return;

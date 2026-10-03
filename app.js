@@ -25,6 +25,17 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .gbanner b{display:block}
 .leaguelinks{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 14px}
 .leaguelinks .nav-link{margin-top:0}
+.standings{padding:12px 0 8px;margin-bottom:14px}
+.sthead{padding:0 14px 8px;font-size:16px}
+.stwrap{overflow-x:auto}
+.sttable{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap}
+.sttable th{font-size:12px;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);text-align:center}
+.sttable td{padding:8px;border-bottom:1px solid var(--line);text-align:center}
+.sttable td.tname,.sttable th:nth-child(2){text-align:start}
+.sttable tr.me td{background:var(--ball-soft);font-weight:800;color:var(--ball)}
+.stfoot{padding:8px 14px 0;font-size:12px;color:var(--muted)}
+.stfoot a{color:var(--ball)}
+.stbtn{background:var(--card);cursor:pointer;font:inherit}
 .pastlbl{font-size:13px;color:var(--muted);margin:18px 4px 8px}
 #gsheet{overflow-y:auto;max-height:92vh}
 .tabs .tab{min-width:0}
@@ -67,6 +78,7 @@ document.body.insertAdjacentHTML('afterbegin',`
   <h2>משחקי ליגה</h2>
   <p class="teamline" id="teamLine"></p>
   <div class="leaguelinks" id="leagueLinks"></div>
+  <div class="card standings" id="standings" hidden></div>
   <div id="games"></div>
   <button class="addbtn" id="addGame">+ להוסיף משחק</button>
 </section>
@@ -421,6 +433,32 @@ function editReg(sid){
 }
 
 
+// ---------- league table ----------
+let stOpen=false;
+const ST_COLS=["מיקום","קבוצה","מש׳","ניצ׳","הפ׳","הפרש","נק׳"];
+async function toggleStandings(){
+  stOpen=!stOpen; $("standings").hidden=!stOpen; renderGames();
+  if(!stOpen) return;
+  if(L.standings) renderStandings();
+  else $("standings").innerHTML=`<div class="emptymonth">טוען את הטבלה מאתר האיגוד…</div>`;
+  try{ L.standings=await api("standings",{}); saveL(); renderStandings(); }
+  catch(e){ if(!L.standings) $("standings").innerHTML=`<div class="emptymonth">לא הצלחתי לטעון את הטבלה (${esc(e.message)})</div>`; }
+}
+function renderStandings(){
+  const t=L.standings; if(!t) return;
+  let idx=t.headers.map((h,i)=>ST_COLS.includes(h)?i:-1).filter(i=>i>=0);
+  if(t.headers.length!==(t.rows[0]||[]).length || idx.length<4) idx=(t.rows[0]||[]).map((_,i)=>i);
+  const heads=idx.map(i=>t.headers[i]||"");
+  const teamCol=t.headers.indexOf("קבוצה");
+  const body=t.rows.map(r=>{
+    const me=r.some(c=>c===t.team);
+    return `<tr class="${me?"me":""}">${idx.map(i=>`<td class="${i===teamCol?"tname":""}">${esc(r[i])}</td>`).join("")}</tr>`;
+  }).join("");
+  $("standings").innerHTML=`<div class="sthead"><b>טבלת הליגה${t.leagueName?" – "+esc(t.leagueName):""}</b></div>
+    <div class="stwrap"><table class="sttable"><thead><tr>${heads.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
+    <div class="stfoot">עודכן ${esc(t.updated||"")} · <a href="${esc(t.url)}" target="_blank" rel="noopener">לאתר האיגוד</a></div>`;
+}
+
 // ---------- games (league) ----------
 const HEB_DAY=d=>"יום "+DAYS[d.getDay()]+", "+d.getDate()+"."+(d.getMonth()+1);
 async function loadGames(){
@@ -446,8 +484,9 @@ function renderGames(){
   $("gamesTab").hidden=!L.hasGames;
   if(!L.hasGames) return;
   $("teamLine").textContent=L.team?("הקבוצה: "+L.team+(L.leagueName?" · ליגת "+L.leagueName:"")):"";
-  $("leagueLinks").innerHTML=(L.leagueUrl?`<a class="nav-link" href="${esc(L.leagueUrl)}" target="_blank" rel="noopener">📊 טבלת הליגה</a>`:"")+
+  $("leagueLinks").innerHTML=`<button class="nav-link stbtn" id="stBtn">${stOpen?"✕ לסגור את הטבלה":"📊 טבלת הליגה"}</button>`+
     (L.teamUrl?`<a class="nav-link" href="${esc(L.teamUrl)}" target="_blank" rel="noopener">דף הקבוצה באתר האיגוד</a>`:"");
+  $("stBtn").onclick=toggleStandings;
   const now=new Date(), list=L.games||[];
   const up=list.filter(g=>at(g.date,g.time)>=addDays(now,0)-90*60000);
   const past=list.filter(g=>!up.includes(g)).slice(-3).reverse();

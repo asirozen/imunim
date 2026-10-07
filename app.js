@@ -475,7 +475,7 @@ async function loadGames(){
   L.games=data.games||[]; L.team=data.team||""; L.homeVenue=data.homeVenue||""; L.homeAddress=data.homeAddress||""; L.leagueName=data.leagueName||""; L.leagueUrl=data.leagueUrl||""; L.teamUrl=data.teamUrl||"";
   saveL();
 }
-function mapsUrl(g){ const q=[g.venue,g.address].filter(Boolean).join(" "); return "https://waze.com/ul?navigate=yes&q="+encodeURIComponent(q); }
+function mapsUrl(g){ const q=[g.venue,g.address].filter(Boolean).join(" "); return "https:"+"/"+"/waze.com/ul?navigate=yes&q="+encodeURIComponent(q);   /* בלי שני לוכסנים ברצף – גוגל מוחק אותם */ }
 function gameCard(g,cls){
   const d=parseKey(g.date);
   const me=L.team;

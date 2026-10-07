@@ -43,7 +43,7 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 document.body.insertAdjacentHTML('afterbegin',`
 <div class="wrap">
 <header class="apphead">
-  <div class="who"><img class="avatar" src="${C.kid}.jpg" alt="${C.name}"><h1>לוח אימוני כדורסל של ${C.name}</h1></div>
+  <div class="who"><img class="avatar" src="${C.avatar||(C.kid+'.jpg')}" alt="${C.name}"><h1>לוח אימוני כדורסל של ${C.name}</h1></div>
   <button class="iconbtn refresh" id="refresh" aria-label="לרענן מהיומן"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg></button>
 </header>
 <p class="sync" id="sync"><span class="dot"></span><span id="syncText">טוען מהיומן…</span></p>
@@ -180,12 +180,21 @@ const saveL=()=>lset(L);
 
 // ---------- key ----------
 const params=new URLSearchParams(location.search);
-const KEY=params.get("key")||L.key||"";
+const KEY=window.CONFIG.key||params.get("key")||L.key||"";
 if(params.get("key")){ L.key=KEY; saveL(); }
 
 // ---------- API ----------
 async function api(action,data,post){
   const body=Object.assign({action,kid:KID,key:KEY},data||{});
+  if(window.CONFIG.gas && window.google && google.script){       // האתר מוגש מגוגל
+    return await new Promise((res,rej)=>{
+      const t=setTimeout(()=>rej(new Error("היומן לא ענה בזמן")),45000);
+      google.script.run
+        .withSuccessHandler(j=>{ clearTimeout(t); if(!j||!j.ok) rej(new Error((j&&j.error)||"שגיאה")); else res(j.data); })
+        .withFailureHandler(e=>{ clearTimeout(t); rej(new Error((e&&e.message)||"בעיית חיבור")); })
+        .apiRun(body);
+    });
+  }
   let res;
   const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),45000);   // לא לחכות לנצח
   try{
@@ -543,7 +552,10 @@ $("gSave").onclick=()=>{
   if(gEdit) v.id=gEdit.id; else v.opId=gOpId;
   gameWrite("saveGame",v);
 };
-$("gDelete").onclick=()=>{ if(gEdit && confirm("למחוק את המשחק?")) gameWrite("deleteGame",{id:gEdit.id}); };
+let delArm=null;
+$("gDelete").onclick=()=>{ if(!gEdit) return;
+  if(delArm!==gEdit.id){ delArm=gEdit.id; toast("לחיצה נוספת תמחק את המשחק"); setTimeout(()=>{delArm=null;},4000); return; }
+  delArm=null; gameWrite("deleteGame",{id:gEdit.id}); };
 
 // ---------- tabs ----------
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{

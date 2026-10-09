@@ -39,6 +39,9 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .pastlbl{font-size:13px;color:var(--muted);margin:18px 4px 8px}
 #gsheet{overflow-y:auto;max-height:92vh}
 .tabs .tab{min-width:0}
+.field select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:17px;color:inherit;font-family:inherit}
+.reg .rrow .ed{flex:none;margin-inline-start:auto;font-size:13px;font-weight:700;color:var(--ball);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.reg + .addbtn{margin-top:12px}
 </style>`);
 document.body.insertAdjacentHTML('afterbegin',`
 <div class="wrap">
@@ -85,8 +88,9 @@ document.body.insertAdjacentHTML('afterbegin',`
 
 <section id="tab-reg" hidden>
   <h2>הלוח הקבוע</h2>
-  <p style="margin:-4px 0 12px;color:var(--muted)">שינוי כאן חל על כל השבועות. שינוי של שבוע אחד עושים בלשונית "החודש". כדי להוסיף יום אימון קבוע חדש, מוסיפים אירוע חוזר ביומן גוגל.</p>
+  <p style="margin:-4px 0 12px;color:var(--muted)">לוחצים על אימון כדי לשנות יום, שעה או מקום, או כדי למחוק אותו. השינוי חל על כל השבועות. שינוי של שבוע אחד עושים בלשונית "החודש".</p>
   <div class="card reg" id="reg"></div>
+  <button class="addbtn" id="addReg">+ להוסיף יום אימון קבוע</button>
 </section>
 </div>
 </div>
@@ -132,6 +136,9 @@ document.body.insertAdjacentHTML('afterbegin',`
   <h3 id="shTitle"></h3>
   <p class="sub" id="shSub"></p>
   <label class="field" id="fDateWrap"><span>תאריך</span><input type="date" id="fDate"></label>
+  <label class="field" id="fDayWrap"><span>יום בשבוע</span><select id="fDay">
+    <option value="SU">ראשון</option><option value="MO">שני</option><option value="TU">שלישי</option><option value="WE">רביעי</option><option value="TH">חמישי</option><option value="FR">שישי</option><option value="SA">שבת</option>
+  </select></label>
   <label class="field"><span>אימון</span><input type="text" id="fName"></label>
   <div class="two">
     <label class="field"><span>מתחיל</span><input type="time" id="fStart"></label>
@@ -392,7 +399,7 @@ function renderReg(){
   $("reg").innerHTML=list.length?list.map(r=>`
     <button class="rrow" data-reg="${esc(r.id)}"><span class="day">${DAYS[DAY_CODE[r.day]]||""}</span>
       <span class="rbody"><span class="rtitle" style="display:block">${esc(r.name)}</span>
-      <span class="rsub">${range(r.start,r.end)} · ${r.place?esc(r.place):"מקום לא ידוע"}</span></span></button>`).join("")
+      <span class="rsub">${range(r.start,r.end)} · ${r.place?esc(r.place):"מקום לא ידוע"}</span></span><span class="ed">עריכה</span></button>`).join("")
     :`<div class="emptymonth">${L.syncedAt?"אין אימונים קבועים ביומן.":"טוען…"}</div>`;
   $("reg").querySelectorAll(".rrow").forEach(b=>b.onclick=()=>editReg(b.dataset.reg));
 }
@@ -403,6 +410,7 @@ function openSheet(o){
   $("shTitle").textContent=o.title; $("shSub").textContent=o.sub||"";
   $("fDateWrap").style.display=o.showDate?"block":"none";
   $("fCancelWrap").style.display=o.showCancel?"flex":"none";
+  $("fDayWrap").style.display=o.showDay?"block":"none"; $("fDay").value=o.day||"SU";
   $("fDate").value=o.date||""; $("fName").value=o.name||""; $("fStart").value=o.start||"";
   $("fEnd").value=o.end||""; $("fPlace").value=o.place||""; $("fCancel").checked=!!o.cancelled;
   $("shReset").style.display=o.resetLabel?"block":"none"; $("shReset").textContent=o.resetLabel||"";
@@ -412,7 +420,7 @@ function openSheet(o){
 function closeSheet(){ $("scrim").classList.remove("open"); $("sheet").classList.remove("open"); }
 $("scrim").onclick=()=>{ closeSheet(); closeGame(); }; $("shClose").onclick=closeSheet;
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
-const vals=()=>({date:$("fDate").value,name:$("fName").value.trim(),start:$("fStart").value,end:$("fEnd").value,place:$("fPlace").value.trim(),cancelled:$("fCancel").checked});
+const vals=()=>({day:$("fDay").value,date:$("fDate").value,name:$("fName").value.trim(),start:$("fStart").value,end:$("fEnd").value,place:$("fPlace").value.trim(),cancelled:$("fCancel").checked});
 $("shSave").onclick=()=>{ const v=vals(); if(!v.start||!v.end){toast("צריך שעת התחלה וסיום");return;} if(v.end<=v.start){toast("שעת הסיום צריכה להיות אחרי ההתחלה");return;} onSave&&onSave(v); };
 $("shReset").onclick=()=>{ onReset&&onReset(); };
 
@@ -435,11 +443,29 @@ $("addExtra").onclick=()=>{
     date:dkey(inView?t:view),name:"כדורסל",start:"17:00",end:"18:30",place:"",
     save:v=>{ if(!v.date){toast("צריך לבחור תאריך");return;} write("add",{opId,date:v.date,name:v.name||"אימון",start:v.start,end:v.end,place:v.place}); }});
 };
+let regDelArm=null;
 function editReg(sid){
   const r=L.series.find(x=>x.id===sid); if(!r) return;
+  regDelArm=null;
   openSheet({title:"הלוח הקבוע – יום "+(DAYS[DAY_CODE[r.day]]||""),sub:"השינוי יחול על כל השבועות",name:r.name,start:r.start,end:r.end,place:r.place,
-    save:v=>write("series",{series:r.id,name:v.name||r.name,start:v.start,end:v.end,place:v.place})});
+    showDay:true,day:r.day,resetLabel:"למחוק את האימון הקבוע הזה",
+    save:v=>{
+      const d={series:r.id,name:v.name||r.name,start:v.start,end:v.end,place:v.place};
+      if(v.day && v.day!==r.day){ d.day=v.day; d.opId=newOpId(); return write("moveSeries",d); }
+      write("series",d);
+    },
+    reset:()=>{
+      if(L.series.length<=1){ toast("צריך להשאיר לפחות אימון קבוע אחד"); return; }
+      if(regDelArm!==r.id){ regDelArm=r.id; $("shReset").textContent="בטוח? לחיצה נוספת תמחק"; setTimeout(()=>{ if(regDelArm===r.id){ regDelArm=null; $("shReset").textContent="למחוק את האימון הקבוע הזה"; } },4000); return; }
+      regDelArm=null; write("deleteSeries",{series:r.id});
+    }});
 }
+$("addReg").onclick=()=>{
+  const opId=newOpId(), last=L.series[0]||{};
+  openSheet({title:"יום אימון קבוע חדש",sub:"האימון יחזור כל שבוע ביום הזה",showDay:true,day:"SU",
+    name:last.name||"כדורסל",start:last.start||"17:00",end:last.end||"18:30",place:last.place||"",
+    save:v=>write("addSeries",{opId,day:v.day,name:v.name||"כדורסל",start:v.start,end:v.end,place:v.place})});
+};
 
 
 // ---------- league table ----------

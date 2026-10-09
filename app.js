@@ -394,8 +394,14 @@ $("prevM").onclick=()=>{view.setMonth(view.getMonth()-1);renderMonth();refresh()
 $("nextM").onclick=()=>{view.setMonth(view.getMonth()+1);renderMonth();refresh();};
 
 // ---------- render: regular ----------
+// אימון קבוע שהסתיים ביומן (אין לו מופעים מהיום והלאה) לא מוצג בלוח הקבוע
+function activeSeries(){
+  const today=dkey(new Date()), ev=Object.values(L.events);
+  if(!L.syncedAt || !ev.some(e=>e.date>=today)) return L.series;
+  return L.series.filter(r=>ev.some(e=>e.series===r.id && e.date>=today));
+}
 function renderReg(){
-  const list=[...L.series].sort((a,b)=>(DAY_CODE[a.day]??9)-(DAY_CODE[b.day]??9)||a.start.localeCompare(b.start));
+  const list=[...activeSeries()].sort((a,b)=>(DAY_CODE[a.day]??9)-(DAY_CODE[b.day]??9)||a.start.localeCompare(b.start));
   $("reg").innerHTML=list.length?list.map(r=>`
     <button class="rrow" data-reg="${esc(r.id)}"><span class="day">${DAYS[DAY_CODE[r.day]]||""}</span>
       <span class="rbody"><span class="rtitle" style="display:block">${esc(r.name)}</span>
@@ -455,13 +461,13 @@ function editReg(sid){
       write("series",d);
     },
     reset:()=>{
-      if(L.series.length<=1){ toast("צריך להשאיר לפחות אימון קבוע אחד"); return; }
+      if(activeSeries().length<=1){ toast("צריך להשאיר לפחות אימון קבוע אחד"); return; }
       if(regDelArm!==r.id){ regDelArm=r.id; $("shReset").textContent="בטוח? לחיצה נוספת תמחק"; setTimeout(()=>{ if(regDelArm===r.id){ regDelArm=null; $("shReset").textContent="למחוק את האימון הקבוע הזה"; } },4000); return; }
       regDelArm=null; write("deleteSeries",{series:r.id});
     }});
 }
 $("addReg").onclick=()=>{
-  const opId=newOpId(), last=L.series[0]||{};
+  const opId=newOpId(), last=activeSeries()[0]||{};
   openSheet({title:"יום אימון קבוע חדש",sub:"האימון יחזור כל שבוע ביום הזה",showDay:true,day:"SU",
     name:last.name||"כדורסל",start:last.start||"17:00",end:last.end||"18:30",place:last.place||"",
     save:v=>write("addSeries",{opId,day:v.day,name:v.name||"כדורסל",start:v.start,end:v.end,place:v.place})});

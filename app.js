@@ -36,6 +36,8 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .stfoot{padding:8px 14px 0;font-size:12px;color:var(--muted)}
 .stfoot a{color:var(--ball)}
 .stbtn{background:var(--card);cursor:pointer;font:inherit}
+textarea.gnotes{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:16px;font-family:inherit;color:inherit;resize:vertical;min-height:70px}
+.gnote{margin-top:8px;padding:8px 10px;background:var(--ball-soft);border-radius:12px;font-size:15px;white-space:pre-wrap}
 .pastlbl{font-size:13px;color:var(--muted);margin:18px 4px 8px}
 #gsheet{overflow-y:auto;max-height:92vh}
 .tabs .tab{min-width:0}
@@ -124,6 +126,7 @@ document.body.insertAdjacentHTML('afterbegin',`
   <label class="field"><span>אולם</span><input type="text" id="gVenue"></label>
   <label class="field"><span>כתובת האולם</span><input type="text" id="gAddr" placeholder="רחוב, מספר, עיר"></label>
   <label class="field"><span>מחזור (לא חובה)</span><input type="text" id="gRound" inputmode="numeric"></label>
+  <label class="field"><span>הערות (לא חובה)</span><textarea id="gNotes" class="gnotes" maxlength="400" placeholder="למשל: להגיע 30 דקות לפני, חולצה לבנה, הסעה עם..."></textarea></label>
   <div class="actions">
     <button class="btn primary" id="gSave">לשמור</button>
     <button class="btn ghost" id="gClose">ביטול</button>
@@ -504,7 +507,8 @@ function renderStandings(){
 const HEB_DAY=d=>"יום "+DAYS[d.getDay()]+", "+d.getDate()+"."+(d.getMonth()+1);
 async function loadGames(){
   const data=await api("games",{});
-  L.games=data.games||[]; L.team=data.team||""; L.homeVenue=data.homeVenue||""; L.homeAddress=data.homeAddress||""; L.leagueName=data.leagueName||""; L.leagueUrl=data.leagueUrl||""; L.teamUrl=data.teamUrl||"";
+  L.games=data.games||[];
+  try{ const n=await api("gameNotes",{}); L.games.forEach(g=>{ g.notes=(n&&n[g.id])||""; }); }catch(e){} L.team=data.team||""; L.homeVenue=data.homeVenue||""; L.homeAddress=data.homeAddress||""; L.leagueName=data.leagueName||""; L.leagueUrl=data.leagueUrl||""; L.teamUrl=data.teamUrl||"";
   saveL();
 }
 function mapsUrl(g){ const q=[g.venue,g.address].filter(Boolean).join(" "); return "https:"+"/"+"/waze.com/ul?navigate=yes&q="+encodeURIComponent(q);   /* בלי שני לוכסנים ברצף – גוגל מוחק אותם */ }
@@ -519,6 +523,7 @@ function gameCard(g,cls){
       <span class="lbl">אורחת</span><span class="${g.away===me?"me":""}">${esc(g.away)}</span>
     </div>
     <div class="gplace"><b>${esc(g.venue||"אולם לא ידוע")}</b>${g.address?" · "+esc(g.address):""}${g.round?" · מחזור "+esc(g.round):""}</div>
+    ${g.notes?`<div class="gnote">📝 ${esc(g.notes)}</div>`:""}
   </button>${(g.venue||g.address)?`<a class="nav-link" href="${mapsUrl(g)}" target="_blank" rel="noopener">ניווט לאולם בוויז</a>`:""}`;
 }
 function renderGames(){
@@ -546,7 +551,7 @@ function renderGameBanner(){
   if(!g){ box.innerHTML=""; return; }
   const opp=g.isHome?g.away:g.home;
   box.innerHTML=`<button class="gbanner"><span class="ic">🏆</span><span><b>משחק ${esc(dayWord(g.date))} ב־<span class="time">${esc(g.time)}</span></b>
-    ${g.isHome?"משחק בית":"משחק חוץ"} נגד ${esc(opp)} · ${esc(g.venue||"")}</span></button>`;
+    ${g.isHome?"משחק בית":"משחק חוץ"} נגד ${esc(opp)} · ${esc(g.venue||"")}${g.notes?`<br>📝 ${esc(g.notes)}`:""}</span></button>`;
   box.querySelector("button").onclick=()=>document.querySelector('.tab[data-tab="games"]').click();
 }
 let gEdit=null, gIsHome=true, gOpId=null;
@@ -560,7 +565,7 @@ function openGame(g){
   gEdit=g||null; gOpId=g?null:newOpId();
   $("gTitle").textContent=g?"עריכת משחק":"משחק חדש";
   $("gDate").value=g?g.date:dkey(new Date()); $("gTime").value=g?g.time:"19:00";
-  $("gOpp").value=g?g.opponent:""; $("gVenue").value=g?g.venue:""; $("gAddr").value=g?g.address:""; $("gRound").value=g?g.round:"";
+  $("gOpp").value=g?g.opponent:""; $("gVenue").value=g?g.venue:""; $("gAddr").value=g?g.address:""; $("gRound").value=g?g.round:""; $("gNotes").value=g?(g.notes||""):"";
   setHome(g?g.isHome:true);
   $("gDelete").style.display=g?"block":"none";
   $("scrim").classList.add("open"); $("gsheet").classList.add("open");
@@ -568,10 +573,13 @@ function openGame(g){
 function closeGame(){ $("gsheet").classList.remove("open"); $("scrim").classList.remove("open"); }
 $("gClose").onclick=closeGame;
 $("addGame").onclick=()=>openGame(null);
-async function gameWrite(action,data){
+async function gameWrite(action,data,note){
   if(writing) return; writing=true; $("busy").classList.add("on");
   let ok=false;
-  try{ await api(action,data,true); ok=true; }
+  try{
+    await api(action,data,true); ok=true;
+    if(note){ try{ await api("gameNote",note,true); }catch(e){ toast("המשחק נשמר, ההערה לא נשמרה ("+e.message+")"); ok=false; } }
+  }
   catch(e){ toast("ייתכן שלא נשמר ("+e.message+")"); }
   finally{ writing=false; $("busy").classList.remove("on"); }
   closeGame(); if(ok) toast("נשמר ביומן");
@@ -582,7 +590,8 @@ $("gSave").onclick=()=>{
   if(!v.date||!v.time){ toast("צריך תאריך ושעה"); return; }
   if(!v.opponent){ toast("צריך את שם הקבוצה היריבה"); return; }
   if(gEdit) v.id=gEdit.id; else v.opId=gOpId;
-  gameWrite("saveGame",v);
+  const notes=$("gNotes").value.trim(), had=gEdit?(gEdit.notes||""):"";
+  gameWrite("saveGame",v,(notes||had)?{id:v.id||v.opId,notes}:null);
 };
 let delArm=null;
 $("gDelete").onclick=()=>{ if(!gEdit) return;

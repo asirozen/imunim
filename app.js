@@ -418,12 +418,12 @@ function renderReg(){
 }
 
 // ---------- sheet ----------
-const PLACES=["אולם ברק","ברק מקורה","צ'יינין מקורה","אולם צ'יינין","אולם שז\"ר","שז\"ר מקורה","אולם שרת","שרת מקורה","אולם רימונים","רימונים מקורה"];
-// כפתורי בחירת מקום. מקום ישן שלא ברשימה מוצג גם הוא, כדי שלא יימחק בטעות
+// בכל שורה: אולם מימין, מקורה משמאל
+const PLACES=["אולם ברק","ברק מקורה","אולם צ'יינין","צ'יינין מקורה","אולם שז\"ר","שז\"ר מקורה","אולם שרת","שרת מקורה","אולם רימונים","רימונים מקורה"];
+// כפתורי בחירת מקום. מקום ישן שלא ברשימה לא מוצג כפתור, אבל נשמר כמו שהוא עד שבוחרים מקום אחר
 function setPlace(cur){
   $("fPlace").value=cur; const box=$("fPlaces"); box.textContent="";
-  const list=(cur&&PLACES.indexOf(cur)<0)?[cur].concat(PLACES):PLACES;
-  list.forEach(p=>{ const b=document.createElement("button"); b.type="button"; b.className="pl"+(p===cur?" on":"");
+  PLACES.forEach(p=>{ const b=document.createElement("button"); b.type="button"; b.className="pl"+(p===cur?" on":"");
     b.textContent=p; b.setAttribute("role","radio"); b.setAttribute("aria-checked",p===cur?"true":"false");
     b.onclick=()=>setPlace(p); box.appendChild(b); });
 }

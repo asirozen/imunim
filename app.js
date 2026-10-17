@@ -44,6 +44,9 @@ textarea.gnotes{width:100%;border:1px solid var(--line);background:var(--bg);bor
 .field select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:17px;color:inherit;font-family:inherit}
 .reg .rrow .ed{flex:none;margin-inline-start:auto;font-size:13px;font-weight:700;color:var(--ball);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 .reg + .addbtn{margin-top:12px}
+.places{display:flex;flex-wrap:wrap;gap:8px}
+.places .pl{flex:1 1 calc(50% - 8px);border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 8px;font:inherit;font-size:15px;font-weight:600;color:inherit;cursor:pointer}
+.places .pl.on{background:var(--ball);border-color:var(--ball);color:#fff}
 </style>`);
 document.body.insertAdjacentHTML('afterbegin',`
 <div class="wrap">
@@ -147,7 +150,7 @@ document.body.insertAdjacentHTML('afterbegin',`
     <label class="field"><span>מתחיל</span><input type="time" id="fStart"></label>
     <label class="field"><span>נגמר</span><input type="time" id="fEnd"></label>
   </div>
-  <label class="field"><span>מקום</span><input type="text" id="fPlace" placeholder="איפה האימון?"></label>
+  <div class="field"><span>מקום</span><input type="hidden" id="fPlace"><div class="places" id="fPlaces" role="radiogroup" aria-label="מקום"></div></div>
   <label class="switch" id="fCancelWrap"><span>האימון בוטל</span><input type="checkbox" id="fCancel"></label>
   <div class="actions">
     <button class="btn primary" id="shSave">לשמור</button>
@@ -414,6 +417,15 @@ function renderReg(){
 }
 
 // ---------- sheet ----------
+const PLACES=["אולם ברק","ברק מקורה","צ'יינין מקורה","אולם צ'יינין","אולם שז\"ר","שז\"ר מקורה","אולם שרת","שרת מקורה","אולם רימונים","רימונים מקורה"];
+// כפתורי בחירת מקום. מקום ישן שלא ברשימה מוצג גם הוא, כדי שלא יימחק בטעות
+function setPlace(cur){
+  $("fPlace").value=cur; const box=$("fPlaces"); box.textContent="";
+  const list=(cur&&PLACES.indexOf(cur)<0)?[cur].concat(PLACES):PLACES;
+  list.forEach(p=>{ const b=document.createElement("button"); b.type="button"; b.className="pl"+(p===cur?" on":"");
+    b.textContent=p; b.setAttribute("role","radio"); b.setAttribute("aria-checked",p===cur?"true":"false");
+    b.onclick=()=>setPlace(p); box.appendChild(b); });
+}
 let onSave=null, onReset=null;
 function openSheet(o){
   $("shTitle").textContent=o.title; $("shSub").textContent=o.sub||"";
@@ -421,7 +433,7 @@ function openSheet(o){
   $("fCancelWrap").style.display=o.showCancel?"flex":"none";
   $("fDayWrap").style.display=o.showDay?"block":"none"; $("fDay").value=o.day||"SU";
   $("fDate").value=o.date||""; $("fName").value=o.name||""; $("fStart").value=o.start||"";
-  $("fEnd").value=o.end||""; $("fPlace").value=o.place||""; $("fCancel").checked=!!o.cancelled;
+  $("fEnd").value=o.end||""; setPlace(o.place||""); $("fCancel").checked=!!o.cancelled;
   $("shReset").style.display=o.resetLabel?"block":"none"; $("shReset").textContent=o.resetLabel||"";
   onSave=o.save; onReset=o.reset;
   $("scrim").classList.add("open"); $("sheet").classList.add("open");

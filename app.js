@@ -40,6 +40,7 @@ textarea.gnotes{width:100%;border:1px solid var(--line);background:var(--bg);bor
 .gnote{margin-top:8px;padding:8px 10px;background:var(--ball-soft);border-radius:12px;font-size:15px;white-space:pre-wrap}
 .pastlbl{font-size:13px;color:var(--muted);margin:18px 4px 8px}
 #gsheet{overflow-y:auto;max-height:92vh}
+#sheet{overflow-y:auto;max-height:92vh;max-height:92dvh}
 .tabs .tab{min-width:0}
 .field select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:17px;color:inherit;font-family:inherit}
 .reg .rrow .ed{flex:none;margin-inline-start:auto;font-size:13px;font-weight:700;color:var(--ball);border:1px solid var(--line);border-radius:999px;padding:4px 10px}

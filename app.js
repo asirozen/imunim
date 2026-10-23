@@ -468,9 +468,10 @@ async function toggleStandings(){
   else $("standings").innerHTML=`<div class="emptymonth">טוען את הטבלה מאתר האיגוד…</div>`;
   /* אתר האיגוד חוסם את גוגל – באתר של Cloudflare קוראים את הטבלה ישירות דרכו */
   const m=String(L.leagueUrl||"").match(/league\/([0-9-]+)/);
-  if(!window.CONFIG.gas && m){
+  if(m){
     try{
-      const r=await fetch("standings?league="+m[1],{cache:"no-store"});
+      const base=window.CONFIG.gas?("https:"+"/"+"/imunim.pages.dev/"):"";   /* גם מהגרסה של גוגל */
+      const r=await fetch(base+"standings?league="+m[1],{cache:"no-store"});
       const t=await r.json();
       if(t.rows && t.rows.length){
         L.standings={headers:t.headers,rows:t.rows,updated:t.updated,team:L.team,leagueName:L.leagueName,url:L.leagueUrl};

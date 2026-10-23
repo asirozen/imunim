@@ -466,18 +466,19 @@ async function toggleStandings(){
   if(!stOpen) return;
   if(L.standings) renderStandings();
   else $("standings").innerHTML=`<div class="emptymonth">טוען את הטבלה מאתר האיגוד…</div>`;
-  try{
-    let st=await api("standings",{});
-    const m=String(st.url||"").match(/league\/([0-9-]+)/);
-    if(st.failed && !CONFIG.gas && m){            /* אתר האיגוד חוסם את גוגל – קוראים דרך Cloudflare */
-      try{
-        const r=await fetch("standings?league="+m[1]);
-        const t=await r.json();
-        if(t.rows && t.rows.length) st=Object.assign({},st,{headers:t.headers,rows:t.rows,updated:t.updated,failed:false});
-      }catch(e2){}
-    }
-    L.standings=st; saveL(); renderStandings();
+  /* אתר האיגוד חוסם את גוגל – באתר של Cloudflare קוראים את הטבלה ישירות דרכו */
+  const m=String(L.leagueUrl||"").match(/league\/([0-9-]+)/);
+  if(!window.CONFIG.gas && m){
+    try{
+      const r=await fetch("standings?league="+m[1],{cache:"no-store"});
+      const t=await r.json();
+      if(t.rows && t.rows.length){
+        L.standings={headers:t.headers,rows:t.rows,updated:t.updated,team:L.team,leagueName:L.leagueName,url:L.leagueUrl};
+        saveL(); renderStandings(); return;
+      }
+    }catch(e2){}
   }
+  try{ L.standings=await api("standings",{}); saveL(); renderStandings(); }
   catch(e){ if(!L.standings) $("standings").innerHTML=`<div class="emptymonth">לא הצלחתי לטעון את הטבלה (${esc(e.message)})</div>`; }
 }
 function renderStandings(){

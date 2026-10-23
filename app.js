@@ -36,18 +36,9 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .stfoot{padding:8px 14px 0;font-size:12px;color:var(--muted)}
 .stfoot a{color:var(--ball)}
 .stbtn{background:var(--card);cursor:pointer;font:inherit}
-textarea.gnotes{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:16px;font-family:inherit;color:inherit;resize:vertical;min-height:70px}
-.gnote{margin-top:8px;padding:8px 10px;background:var(--ball-soft);border-radius:12px;font-size:15px;white-space:pre-wrap}
 .pastlbl{font-size:13px;color:var(--muted);margin:18px 4px 8px}
 #gsheet{overflow-y:auto;max-height:92vh}
-#sheet{overflow-y:auto;max-height:92vh;max-height:92dvh}
 .tabs .tab{min-width:0}
-.field select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:17px;color:inherit;font-family:inherit}
-.reg .rrow .ed{flex:none;margin-inline-start:auto;font-size:13px;font-weight:700;color:var(--ball);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
-.reg + .addbtn{margin-top:12px}
-.places{display:flex;flex-wrap:wrap;gap:8px}
-.places .pl{flex:1 1 calc(50% - 8px);border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 8px;font:inherit;font-size:15px;font-weight:600;color:inherit;cursor:pointer}
-.places .pl.on{background:var(--ball);border-color:var(--ball);color:#fff}
 </style>`);
 document.body.insertAdjacentHTML('afterbegin',`
 <div class="wrap">
@@ -94,9 +85,9 @@ document.body.insertAdjacentHTML('afterbegin',`
 
 <section id="tab-reg" hidden>
   <h2>הלוח הקבוע</h2>
-  <p style="margin:-4px 0 12px;color:var(--muted)">לוחצים על אימון כדי לשנות יום, שעה או מקום, או כדי למחוק אותו. השינוי חל על כל השבועות. שינוי של שבוע אחד עושים בלשונית "החודש".</p>
+  <p style="margin:-4px 0 12px;color:var(--muted)">לוחצים על אימון כדי לשנות יום, שעה או מקום, או כדי למחוק אותו. השינוי חל על כל השבועות מהיום והלאה. שינוי של שבוע אחד עושים בלשונית "החודש".</p>
   <div class="card reg" id="reg"></div>
-  <button class="addbtn" id="addReg">+ להוסיף יום אימון קבוע</button>
+  <button class="addbtn" id="addReg">+ להוסיף אימון קבוע</button>
 </section>
 </div>
 </div>
@@ -130,7 +121,6 @@ document.body.insertAdjacentHTML('afterbegin',`
   <label class="field"><span>אולם</span><input type="text" id="gVenue"></label>
   <label class="field"><span>כתובת האולם</span><input type="text" id="gAddr" placeholder="רחוב, מספר, עיר"></label>
   <label class="field"><span>מחזור (לא חובה)</span><input type="text" id="gRound" inputmode="numeric"></label>
-  <label class="field"><span>הערות (לא חובה)</span><textarea id="gNotes" class="gnotes" maxlength="400" placeholder="למשל: להגיע 30 דקות לפני, חולצה לבנה, הסעה עם..."></textarea></label>
   <div class="actions">
     <button class="btn primary" id="gSave">לשמור</button>
     <button class="btn ghost" id="gClose">ביטול</button>
@@ -143,15 +133,13 @@ document.body.insertAdjacentHTML('afterbegin',`
   <h3 id="shTitle"></h3>
   <p class="sub" id="shSub"></p>
   <label class="field" id="fDateWrap"><span>תאריך</span><input type="date" id="fDate"></label>
-  <label class="field" id="fDayWrap"><span>יום בשבוע</span><select id="fDay">
-    <option value="SU">ראשון</option><option value="MO">שני</option><option value="TU">שלישי</option><option value="WE">רביעי</option><option value="TH">חמישי</option><option value="FR">שישי</option><option value="SA">שבת</option>
-  </select></label>
+  <label class="field" id="fDayWrap"><span>יום בשבוע</span><select id="fDay"><option value="SU">ראשון</option><option value="MO">שני</option><option value="TU">שלישי</option><option value="WE">רביעי</option><option value="TH">חמישי</option><option value="FR">שישי</option><option value="SA">שבת</option></select></label>
   <label class="field"><span>אימון</span><input type="text" id="fName"></label>
   <div class="two">
     <label class="field"><span>מתחיל</span><input type="time" id="fStart"></label>
     <label class="field"><span>נגמר</span><input type="time" id="fEnd"></label>
   </div>
-  <div class="field"><span>מקום</span><input type="hidden" id="fPlace"><div class="places" id="fPlaces" role="radiogroup" aria-label="מקום"></div></div>
+  <label class="field"><span>מקום</span><input type="text" id="fPlace" placeholder="איפה האימון?"></label>
   <label class="switch" id="fCancelWrap"><span>האימון בוטל</span><input type="checkbox" id="fCancel"></label>
   <div class="actions">
     <button class="btn primary" id="shSave">לשמור</button>
@@ -401,40 +389,26 @@ $("prevM").onclick=()=>{view.setMonth(view.getMonth()-1);renderMonth();refresh()
 $("nextM").onclick=()=>{view.setMonth(view.getMonth()+1);renderMonth();refresh();};
 
 // ---------- render: regular ----------
-// אימון קבוע שהסתיים ביומן (אין לו מופעים מהיום והלאה) לא מוצג בלוח הקבוע
-function activeSeries(){
-  const today=dkey(new Date()), ev=Object.values(L.events);
-  if(!L.syncedAt || !ev.some(e=>e.date>=today)) return L.series;
-  return L.series.filter(r=>ev.some(e=>e.series===r.id && e.date>=today));
-}
 function renderReg(){
-  const list=[...activeSeries()].sort((a,b)=>(DAY_CODE[a.day]??9)-(DAY_CODE[b.day]??9)||a.start.localeCompare(b.start));
+  const list=[...L.series].sort((a,b)=>(DAY_CODE[a.day]??9)-(DAY_CODE[b.day]??9)||a.start.localeCompare(b.start));
   $("reg").innerHTML=list.length?list.map(r=>`
     <button class="rrow" data-reg="${esc(r.id)}"><span class="day">${DAYS[DAY_CODE[r.day]]||""}</span>
       <span class="rbody"><span class="rtitle" style="display:block">${esc(r.name)}</span>
-      <span class="rsub">${range(r.start,r.end)} · ${r.place?esc(r.place):"מקום לא ידוע"}</span></span><span class="ed">עריכה</span></button>`).join("")
+      <span class="rsub">${range(r.start,r.end)} · ${r.place?esc(r.place):"מקום לא ידוע"}</span></span></button>`).join("")
     :`<div class="emptymonth">${L.syncedAt?"אין אימונים קבועים ביומן.":"טוען…"}</div>`;
   $("reg").querySelectorAll(".rrow").forEach(b=>b.onclick=()=>editReg(b.dataset.reg));
 }
 
 // ---------- sheet ----------
-// בכל שורה: אולם מימין, מקורה משמאל
-const PLACES=["אולם ברק","ברק מקורה","אולם צ'יינין","צ'יינין מקורה","אולם שז\"ר","שז\"ר מקורה","אולם שרת","שרת מקורה","אולם רימונים","רימונים מקורה"];
-// כפתורי בחירת מקום. מקום ישן שלא ברשימה לא מוצג כפתור, אבל נשמר כמו שהוא עד שבוחרים מקום אחר
-function setPlace(cur){
-  $("fPlace").value=cur; const box=$("fPlaces"); box.textContent="";
-  PLACES.forEach(p=>{ const b=document.createElement("button"); b.type="button"; b.className="pl"+(p===cur?" on":"");
-    b.textContent=p; b.setAttribute("role","radio"); b.setAttribute("aria-checked",p===cur?"true":"false");
-    b.onclick=()=>setPlace(p); box.appendChild(b); });
-}
 let onSave=null, onReset=null;
 function openSheet(o){
   $("shTitle").textContent=o.title; $("shSub").textContent=o.sub||"";
   $("fDateWrap").style.display=o.showDate?"block":"none";
-  $("fCancelWrap").style.display=o.showCancel?"flex":"none";
   $("fDayWrap").style.display=o.showDay?"block":"none"; $("fDay").value=o.day||"SU";
+  armed=false;
+  $("fCancelWrap").style.display=o.showCancel?"flex":"none";
   $("fDate").value=o.date||""; $("fName").value=o.name||""; $("fStart").value=o.start||"";
-  $("fEnd").value=o.end||""; setPlace(o.place||""); $("fCancel").checked=!!o.cancelled;
+  $("fEnd").value=o.end||""; $("fPlace").value=o.place||""; $("fCancel").checked=!!o.cancelled;
   $("shReset").style.display=o.resetLabel?"block":"none"; $("shReset").textContent=o.resetLabel||"";
   onSave=o.save; onReset=o.reset;
   $("scrim").classList.add("open"); $("sheet").classList.add("open");
@@ -442,9 +416,13 @@ function openSheet(o){
 function closeSheet(){ $("scrim").classList.remove("open"); $("sheet").classList.remove("open"); }
 $("scrim").onclick=()=>{ closeSheet(); closeGame(); }; $("shClose").onclick=closeSheet;
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+let armed=false;
 const vals=()=>({day:$("fDay").value,date:$("fDate").value,name:$("fName").value.trim(),start:$("fStart").value,end:$("fEnd").value,place:$("fPlace").value.trim(),cancelled:$("fCancel").checked});
 $("shSave").onclick=()=>{ const v=vals(); if(!v.start||!v.end){toast("צריך שעת התחלה וסיום");return;} if(v.end<=v.start){toast("שעת הסיום צריכה להיות אחרי ההתחלה");return;} onSave&&onSave(v); };
 $("shReset").onclick=()=>{ onReset&&onReset(); };
+function confirmTwice(label,fn){            // לחיצה ראשונה מבקשת אישור, שנייה מבצעת
+  return ()=>{ if(!armed){ armed=true; $("shReset").textContent="ללחוץ שוב כדי "+label; return; } armed=false; fn(); };
+}
 
 function editSession(id){
   const s=L.events[id]; if(!s) return; const d=parseKey(s.date);
@@ -465,27 +443,17 @@ $("addExtra").onclick=()=>{
     date:dkey(inView?t:view),name:"כדורסל",start:"17:00",end:"18:30",place:"",
     save:v=>{ if(!v.date){toast("צריך לבחור תאריך");return;} write("add",{opId,date:v.date,name:v.name||"אימון",start:v.start,end:v.end,place:v.place}); }});
 };
-let regDelArm=null;
 function editReg(sid){
   const r=L.series.find(x=>x.id===sid); if(!r) return;
-  regDelArm=null;
-  openSheet({title:"הלוח הקבוע – יום "+(DAYS[DAY_CODE[r.day]]||""),sub:"השינוי יחול על כל השבועות",name:r.name,start:r.start,end:r.end,place:r.place,
-    showDay:true,day:r.day,resetLabel:"למחוק את האימון הקבוע הזה",
-    save:v=>{
-      const d={series:r.id,name:v.name||r.name,start:v.start,end:v.end,place:v.place};
-      if(v.day && v.day!==r.day){ d.day=v.day; d.opId=newOpId(); return write("moveSeries",d); }
-      write("series",d);
-    },
-    reset:()=>{
-      if(activeSeries().length<=1){ toast("צריך להשאיר לפחות אימון קבוע אחד"); return; }
-      if(regDelArm!==r.id){ regDelArm=r.id; $("shReset").textContent="בטוח? לחיצה נוספת תמחק"; setTimeout(()=>{ if(regDelArm===r.id){ regDelArm=null; $("shReset").textContent="למחוק את האימון הקבוע הזה"; } },4000); return; }
-      regDelArm=null; write("deleteSeries",{series:r.id});
-    }});
+  openSheet({title:"הלוח הקבוע – יום "+(DAYS[DAY_CODE[r.day]]||""),sub:"השינוי יחול על כל השבועות מהיום והלאה",name:r.name,start:r.start,end:r.end,place:r.place,
+    showDay:true,day:r.day,resetLabel:"למחוק את האימון הקבוע",
+    save:v=>write("series",{series:r.id,day:v.day,name:v.name||r.name,start:v.start,end:v.end,place:v.place}),
+    reset:confirmTwice("למחוק",()=>write("delSeries",{series:r.id}))});
 }
 $("addReg").onclick=()=>{
-  const opId=newOpId(), last=activeSeries()[0]||{};
-  openSheet({title:"יום אימון קבוע חדש",sub:"האימון יחזור כל שבוע ביום הזה",showDay:true,day:"SU",
-    name:last.name||"כדורסל",start:last.start||"17:00",end:last.end||"18:30",place:last.place||"",
+  const opId=newOpId();
+  openSheet({title:"אימון קבוע חדש",sub:"יופיע בכל שבוע, החל מהשבוע הקרוב",showDay:true,day:"SU",
+    name:"כדורסל",start:"17:00",end:"18:30",place:"",
     save:v=>write("addSeries",{opId,day:v.day,name:v.name||"כדורסל",start:v.start,end:v.end,place:v.place})});
 };
 
@@ -498,7 +466,18 @@ async function toggleStandings(){
   if(!stOpen) return;
   if(L.standings) renderStandings();
   else $("standings").innerHTML=`<div class="emptymonth">טוען את הטבלה מאתר האיגוד…</div>`;
-  try{ L.standings=await api("standings",{}); saveL(); renderStandings(); }
+  try{
+    let st=await api("standings",{});
+    const m=String(st.url||"").match(/league\/([0-9-]+)/);
+    if(st.failed && !CONFIG.gas && m){            /* אתר האיגוד חוסם את גוגל – קוראים דרך Cloudflare */
+      try{
+        const r=await fetch("standings?league="+m[1]);
+        const t=await r.json();
+        if(t.rows && t.rows.length) st=Object.assign({},st,{headers:t.headers,rows:t.rows,updated:t.updated,failed:false});
+      }catch(e2){}
+    }
+    L.standings=st; saveL(); renderStandings();
+  }
   catch(e){ if(!L.standings) $("standings").innerHTML=`<div class="emptymonth">לא הצלחתי לטעון את הטבלה (${esc(e.message)})</div>`; }
 }
 function renderStandings(){
@@ -520,8 +499,7 @@ function renderStandings(){
 const HEB_DAY=d=>"יום "+DAYS[d.getDay()]+", "+d.getDate()+"."+(d.getMonth()+1);
 async function loadGames(){
   const data=await api("games",{});
-  L.games=data.games||[];
-  try{ const n=await api("gameNotes",{}); L.games.forEach(g=>{ g.notes=(n&&n[g.id])||""; }); }catch(e){} L.team=data.team||""; L.homeVenue=data.homeVenue||""; L.homeAddress=data.homeAddress||""; L.leagueName=data.leagueName||""; L.leagueUrl=data.leagueUrl||""; L.teamUrl=data.teamUrl||"";
+  L.games=data.games||[]; L.team=data.team||""; L.homeVenue=data.homeVenue||""; L.homeAddress=data.homeAddress||""; L.leagueName=data.leagueName||""; L.leagueUrl=data.leagueUrl||""; L.teamUrl=data.teamUrl||"";
   saveL();
 }
 function mapsUrl(g){ const q=[g.venue,g.address].filter(Boolean).join(" "); return "https:"+"/"+"/waze.com/ul?navigate=yes&q="+encodeURIComponent(q);   /* בלי שני לוכסנים ברצף – גוגל מוחק אותם */ }
@@ -536,7 +514,6 @@ function gameCard(g,cls){
       <span class="lbl">אורחת</span><span class="${g.away===me?"me":""}">${esc(g.away)}</span>
     </div>
     <div class="gplace"><b>${esc(g.venue||"אולם לא ידוע")}</b>${g.address?" · "+esc(g.address):""}${g.round?" · מחזור "+esc(g.round):""}</div>
-    ${g.notes?`<div class="gnote">📝 ${esc(g.notes)}</div>`:""}
   </button>${(g.venue||g.address)?`<a class="nav-link" href="${mapsUrl(g)}" target="_blank" rel="noopener">ניווט לאולם בוויז</a>`:""}`;
 }
 function renderGames(){
@@ -564,7 +541,7 @@ function renderGameBanner(){
   if(!g){ box.innerHTML=""; return; }
   const opp=g.isHome?g.away:g.home;
   box.innerHTML=`<button class="gbanner"><span class="ic">🏆</span><span><b>משחק ${esc(dayWord(g.date))} ב־<span class="time">${esc(g.time)}</span></b>
-    ${g.isHome?"משחק בית":"משחק חוץ"} נגד ${esc(opp)} · ${esc(g.venue||"")}${g.notes?`<br>📝 ${esc(g.notes)}`:""}</span></button>`;
+    ${g.isHome?"משחק בית":"משחק חוץ"} נגד ${esc(opp)} · ${esc(g.venue||"")}</span></button>`;
   box.querySelector("button").onclick=()=>document.querySelector('.tab[data-tab="games"]').click();
 }
 let gEdit=null, gIsHome=true, gOpId=null;
@@ -578,7 +555,7 @@ function openGame(g){
   gEdit=g||null; gOpId=g?null:newOpId();
   $("gTitle").textContent=g?"עריכת משחק":"משחק חדש";
   $("gDate").value=g?g.date:dkey(new Date()); $("gTime").value=g?g.time:"19:00";
-  $("gOpp").value=g?g.opponent:""; $("gVenue").value=g?g.venue:""; $("gAddr").value=g?g.address:""; $("gRound").value=g?g.round:""; $("gNotes").value=g?(g.notes||""):"";
+  $("gOpp").value=g?g.opponent:""; $("gVenue").value=g?g.venue:""; $("gAddr").value=g?g.address:""; $("gRound").value=g?g.round:"";
   setHome(g?g.isHome:true);
   $("gDelete").style.display=g?"block":"none";
   $("scrim").classList.add("open"); $("gsheet").classList.add("open");
@@ -586,13 +563,10 @@ function openGame(g){
 function closeGame(){ $("gsheet").classList.remove("open"); $("scrim").classList.remove("open"); }
 $("gClose").onclick=closeGame;
 $("addGame").onclick=()=>openGame(null);
-async function gameWrite(action,data,note){
+async function gameWrite(action,data){
   if(writing) return; writing=true; $("busy").classList.add("on");
   let ok=false;
-  try{
-    await api(action,data,true); ok=true;
-    if(note){ try{ await api("gameNote",note,true); }catch(e){ toast("המשחק נשמר, ההערה לא נשמרה ("+e.message+")"); ok=false; } }
-  }
+  try{ await api(action,data,true); ok=true; }
   catch(e){ toast("ייתכן שלא נשמר ("+e.message+")"); }
   finally{ writing=false; $("busy").classList.remove("on"); }
   closeGame(); if(ok) toast("נשמר ביומן");
@@ -603,8 +577,7 @@ $("gSave").onclick=()=>{
   if(!v.date||!v.time){ toast("צריך תאריך ושעה"); return; }
   if(!v.opponent){ toast("צריך את שם הקבוצה היריבה"); return; }
   if(gEdit) v.id=gEdit.id; else v.opId=gOpId;
-  const notes=$("gNotes").value.trim(), had=gEdit?(gEdit.notes||""):"";
-  gameWrite("saveGame",v,(notes||had)?{id:v.id||v.opId,notes}:null);
+  gameWrite("saveGame",v);
 };
 let delArm=null;
 $("gDelete").onclick=()=>{ if(!gEdit) return;

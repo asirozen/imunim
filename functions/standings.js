@@ -4,7 +4,7 @@ export async function onRequest(context) {
   if (!/^[0-9]{4}-[0-9]{1,6}$/.test(league)) return json({ error: "bad league" }, 400);
 
   const cache = caches.default;
-  const key = new Request("https://imunim-cache/standings/" + league);
+  const key = new Request("https://imunim-cache/standings-v2/" + league);
   const hit = await cache.match(key);
   if (hit) return hit;
 
@@ -54,6 +54,7 @@ function json(o, status, maxAge) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
       "Cache-Control": maxAge ? "public, max-age=" + maxAge : "no-store"
     }
   });
